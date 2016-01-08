@@ -49,6 +49,9 @@ class PetAI : public CreatureAI
         void MoveInLineOfSight_Safe(Unit* /*who*/) { } // CreatureAI interferes with returning pets
         void EnterEvadeMode() override { } // For fleeing, pets don't use this type of Evade mechanic
 
+        virtual bool ShouldMeleeAttack(Unit* /*target*/) { return true; }
+        virtual float DetermineChaseDist(Unit* /*target*/) { return 0.0f; }
+
     private:
         bool _isVisible(Unit*) const;
         bool _needToStop(void);
@@ -59,6 +62,7 @@ class PetAI : public CreatureAI
         TimeTracker i_tracker;
         GuidSet m_AllySet;
         uint32 m_updateAlliesTimer;
+        bool _castMovementStopped;
 
         Unit* SelectNextTarget(bool allowAutoSelect) const;
         void HandleReturnMovement();

@@ -31,13 +31,17 @@ namespace FactorySelector
     {
         const CreatureAICreator* ai_factory = NULL;
 
-        if (creature->IsPet())
+        // force hunter pets not to use their script from when they were a creature (is there a better way for this?)
+        if (creature->IsHunterPet())
             ai_factory = sCreatureAIRegistry->GetRegistryItem("PetAI");
 
-        //scriptname in db
+        //scriptname in db takes precedence for warlock pets
         if (!ai_factory)
             if (CreatureAI* scriptedAI = sScriptMgr->GetCreatureAI(creature))
                 return scriptedAI;
+
+        if (creature->IsPet())
+            ai_factory = sCreatureAIRegistry->GetRegistryItem("PetAI");
 
         // AIname in db
         std::string ainame=creature->GetAIName();

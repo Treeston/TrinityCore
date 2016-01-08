@@ -102,14 +102,17 @@ void PetAI::UpdateAI(uint32 diff)
             return;
         }
 
-        // Check before attacking to prevent pets from leaving stay position
-        if (me->GetCharmInfo()->HasCommandState(COMMAND_STAY))
+        if (ShouldMeleeAttack(me->EnsureVictim()))
         {
-            if (me->GetCharmInfo()->IsCommandAttack() || (me->GetCharmInfo()->IsAtStay() && me->IsWithinMeleeRange(me->GetVictim())))
+            // Check before attacking to prevent pets from leaving stay position
+            if (me->GetCharmInfo()->HasCommandState(COMMAND_STAY))
+            {
+                if (me->GetCharmInfo()->IsCommandAttack() || (me->GetCharmInfo()->IsAtStay() && me->IsWithinMeleeRange(me->GetVictim())))
+                    DoMeleeAttackIfReady();
+            }
+            else
                 DoMeleeAttackIfReady();
         }
-        else
-            DoMeleeAttackIfReady();
     }
     else
     {
@@ -246,11 +249,16 @@ void PetAI::UpdateAI(uint32 diff)
             }
 
             spell->prepare(&targets);
-        }
 
-        // deleted cached Spell objects
-        for (TargetSpellList::const_iterator itr = targetSpellStore.begin(); itr != targetSpellStore.end(); ++itr)
-            delete itr->second;
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                me->StopMoving(); // stop chasing until cast finishes
+
+            // deleted cached Spell objects
+            for (TargetSpellList::const_iterator itr = targetSpellStore.begin(); itr != targetSpellStore.end(); ++itr)
+                delete itr->second;
+        }
+        else if (me->GetVictim() && CanAttack(me->EnsureVictim()) && (!me->GetCharmInfo()->HasCommandState(COMMAND_STAY) || me->GetCharmInfo()->IsCommandAttack()))
+            me->GetMotionMaster()->MoveChase(me->EnsureVictim(), DetermineChaseDist(me->GetVictim())); // begin chasing once we don't have a spell to cast
     }
 
     // Update speed as needed to prevent dropping too far behind and despawning
@@ -459,7 +467,7 @@ void PetAI::DoAttack(Unit* target, bool chase)
     // Handles attack with or without chase and also resets flags
     // for next update / creature kill
 
-    if (me->Attack(target, true))
+    if (me->Attack(target, ShouldMeleeAttack(target)))
     {
         // Play sound to let the player know the pet is attacking something it picked on its own
         if (me->HasReactState(REACT_AGGRESSIVE) && !me->GetCharmInfo()->IsCommandAttack())
@@ -471,7 +479,7 @@ void PetAI::DoAttack(Unit* target, bool chase)
             ClearCharmInfoFlags();
             me->GetCharmInfo()->SetIsCommandAttack(oldCmdAttack); // For passive pets commanded to attack so they will use spells
             me->GetMotionMaster()->Clear();
-            me->GetMotionMaster()->MoveChase(target);
+            me->GetMotionMaster()->MoveChase(target, DetermineChaseDist(target));
         }
         else // (Stay && ((Aggressive || Defensive) && In Melee Range)))
         {
