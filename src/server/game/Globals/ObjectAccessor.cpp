@@ -47,7 +47,7 @@ WorldObject* ObjectAccessor::GetWorldObject(WorldObject const& p, ObjectGuid con
         case HighGuid::Pet:           return GetPet(p, guid);
         case HighGuid::DynamicObject: return GetDynamicObject(p, guid);
         case HighGuid::Corpse:        return GetCorpse(p, guid);
-        default:                     return NULL;
+        default:                      return nullptr;
     }
 }
 
@@ -88,31 +88,46 @@ Object* ObjectAccessor::GetObjectByTypeMask(WorldObject const& p, ObjectGuid con
             break;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 Corpse* ObjectAccessor::GetCorpse(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     return u.GetMap()->GetCorpse(guid);
 }
 
 GameObject* ObjectAccessor::GetGameObject(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     return u.GetMap()->GetGameObject(guid);
 }
 
 Transport* ObjectAccessor::GetTransport(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     return u.GetMap()->GetTransport(guid);
 }
 
 DynamicObject* ObjectAccessor::GetDynamicObject(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     return u.GetMap()->GetDynamicObject(guid);
 }
 
 Unit* ObjectAccessor::GetUnit(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     if (guid.IsPlayer())
         return GetPlayer(u, guid);
 
@@ -124,16 +139,25 @@ Unit* ObjectAccessor::GetUnit(WorldObject const& u, ObjectGuid const& guid)
 
 Creature* ObjectAccessor::GetCreature(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     return u.GetMap()->GetCreature(guid);
 }
 
 Pet* ObjectAccessor::GetPet(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     return u.GetMap()->GetPet(guid);
 }
 
 Player* ObjectAccessor::GetPlayer(Map const* m, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     if (Player* player = HashMapHolder<Player>::Find(guid))
         if (player->IsInWorld() && player->GetMap() == m)
             return player;
@@ -143,18 +167,24 @@ Player* ObjectAccessor::GetPlayer(Map const* m, ObjectGuid const& guid)
 
 Player* ObjectAccessor::GetPlayer(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     return GetPlayer(u.GetMap(), guid);
 }
 
 Creature* ObjectAccessor::GetCreatureOrPetOrVehicle(WorldObject const& u, ObjectGuid const& guid)
 {
+    if (!guid)
+        return nullptr;
+
     if (guid.IsPet())
         return GetPet(u, guid);
 
     if (guid.IsCreatureOrVehicle())
         return GetCreature(u, guid);
 
-    return NULL;
+    return nullptr;
 }
 
 Player* ObjectAccessor::FindPlayer(ObjectGuid const& guid)
@@ -185,7 +215,7 @@ Player* ObjectAccessor::FindPlayerByName(std::string const& name)
             return iter->second;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 Player* ObjectAccessor::FindConnectedPlayerByName(std::string const& name)
@@ -203,7 +233,7 @@ Player* ObjectAccessor::FindConnectedPlayerByName(std::string const& name)
             return iter->second;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 HashMapHolder<Player>::MapType const& ObjectAccessor::GetPlayers()
