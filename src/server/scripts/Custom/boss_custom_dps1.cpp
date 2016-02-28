@@ -9,6 +9,7 @@ static const uint32 BASECENTRY = 100000;
 static const uint32 BASEOENTRY = 1000000;
 static const uint32 BASEGOSSIP = 60400;
 static const uint32 BASETEXT = 16740000;
+static const uint32 BASEITEM = 100000;
 static const WorldLocation ENTRY_POINT(169, -76.59f, 2410.39f, 92.008f, 2.6429f);
 enum WreckerTalk
 {
@@ -40,7 +41,9 @@ enum Spells
     SPELL_ICY_GRIP              = 70177,
     SPELL_ICY_CHAINS            = 29991,
     SPELL_CHARGE                = 74399,
-    SPELL_TELEPORT_VISUAL       = 64446
+    SPELL_TELEPORT_VISUAL       = 64446,
+    SPELL_DIFFICULTY_AURA       = 65077,
+    SPELL_MASS_RESURRECTION     = 72429
 };
 
 enum Events
@@ -56,7 +59,8 @@ enum Events
 
 enum Data
 {
-    DATA_IS_ENGAGED = 1
+    DATA_IS_ENGAGED = 1,
+    DATA_DIFFICULTY
 };
 
 enum GossipMenuEntries
@@ -70,7 +74,9 @@ enum Entries
     NPC_WRECKER = BASECENTRY + 0,
     NPC_NOVARCH = BASECENTRY + 1,
 
-    GO_GATE = BASEOENTRY + 0
+    GO_GATE = BASEOENTRY + 0,
+
+    ITEM_WRECKER_TOKEN = BASEITEM + 0
 };
 
 static float const AGGRO_DISTANCE = 40.0f;
@@ -97,7 +103,7 @@ public:
 
     struct boss_custom_dps1AI : public ScriptedAI
     {
-        boss_custom_dps1AI(Creature* creature) : ScriptedAI(creature), _startTime(0), _weakenCount(0), _speedupCount(0), _timeSinceDamage(0) { }
+        boss_custom_dps1AI(Creature* creature) : ScriptedAI(creature), _startTime(0), _weakenCount(0), _speedupCount(0), _timeSinceDamage(0), _difficulty(0) { }
 
         void InitializeAI()
         {
@@ -124,7 +130,14 @@ public:
                 {
                     player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
                     player->TeleportTo(ENTRY_POINT);
+                    if (player->isDead())
+                    {
+                        player->SendCorpseReclaimDelay(0);
+                        if (Creature* novarch = me->FindNearestCreature(NPC_NOVARCH, 500.0f, true))
+                            novarch->CastSpell(nullptr, SPELL_MASS_RESURRECTION, TRIGGERED_NONE);
+                    }
                 }
+            SetData(DATA_DIFFICULTY, 0);
             _playerGUID = ObjectGuid::Empty;
             me->DespawnOrUnsummon();
         }
@@ -189,6 +202,21 @@ public:
         }
 
         inline bool IsEncounterActive() const { return !_playerGUID.IsEmpty(); }
+
+        void SetData(uint32 data, uint32 value) override
+        {
+            switch (data)
+            {
+                case DATA_DIFFICULTY:
+                    me->RemoveAura(SPELL_DIFFICULTY_AURA);
+                    if (value)
+                        if (Aura* diffAura = me->AddAura(SPELL_DIFFICULTY_AURA, me))
+                        {
+                            diffAura->SetStackAmount(value);
+                        }
+                    _difficulty = value;
+            }
+        }
 
         uint32 GetData(uint32 data) const override
         {
@@ -337,6 +365,13 @@ public:
             uint32 killTime = GetMSTimeDiffToNow(_startTime);
             Talk(YELL_DEATH);
             me->Talk(Trinity::StringFormat("%%s has been defeated by $n in %d.%d seconds!", killTime / IN_MILLISECONDS, killTime % IN_MILLISECONDS), CHAT_MSG_MONSTER_EMOTE, LANG_UNIVERSAL, 50000.0f, pKiller);
+
+            uint32 tokenCount = 0;
+            if (Item* token = pKiller->GetItemByEntry(ITEM_WRECKER_TOKEN))
+                tokenCount = token->GetCount();
+            if (tokenCount <= _difficulty)
+                pKiller->AddItem(ITEM_WRECKER_TOKEN, 1);
+            ResetEncounter();
             ScriptedAI::JustDied(killer);
         }
 
@@ -346,6 +381,7 @@ public:
         uint8 _speedupCount;
         EventMap _events;
         uint32 _timeSinceDamage;
+        uint32 _difficulty;
     };
 };
 
@@ -368,17 +404,16 @@ public:
 
     bool OnGossipSelect(Player* player, Creature* me, uint32 /*sender*/, uint32 action) override
     {
-        switch (action)
+        uint32 difficulty = action - GOSSIP_ACTION_INFO_DEF - 1;
+        player->PlayerTalkClass->SendCloseGossip();
+        if (Creature* wrecker = _wrecker(me))
         {
-            case GOSSIP_ACTION_INFO_DEF+1:
-            {
-                player->PlayerTalkClass->SendCloseGossip();
-                std::list<GameObject*> gateGOs;
-                me->GetGameObjectListWithEntryInGrid(gateGOs, GO_GATE, 30.0f);
-                for (GameObject* gate : gateGOs)
-                    gate->SetGoState(GO_STATE_ACTIVE);
-                break;
-            }
+            std::list<GameObject*> gateGOs;
+            me->GetGameObjectListWithEntryInGrid(gateGOs, GO_GATE, 30.0f);
+            for (GameObject* gate : gateGOs)
+                gate->SetGoState(GO_STATE_ACTIVE);
+
+            wrecker->AI()->SetData(DATA_DIFFICULTY, difficulty);
         }
         return true;
     }
@@ -391,7 +426,17 @@ public:
         {
             if (!wrecker->AI()->GetData(DATA_IS_ENGAGED))
             {
-                player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "I will enter.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                uint32 maxDifficulty = 0;
+                if (Item* token = player->GetItemByEntry(ITEM_WRECKER_TOKEN))
+                    maxDifficulty = token->GetCount();
+                while (true)
+                {
+                    player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, Trinity::StringFormat("I will enter (difficulty %d).", maxDifficulty), GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + maxDifficulty + 1);
+                    if (maxDifficulty)
+                        --maxDifficulty;
+                    else
+                        break;
+                }
                 player->PlayerTalkClass->SendGossipMenu(GOSSIP_WRECKER_DIFFICULTY, me->GetGUID());
                 return true;
             }

@@ -8,6 +8,7 @@ SET @BASECGUID = 1500000;
 SET @BASEOGUID = 1500000;
 SET @BASEGOSSIP = 60400;
 SET @BASETEXT = 16740000;
+SET @BASEITEM = 100000;
 
 DELETE FROM `creature_template` WHERE `entry` between @BASECENTRY+0 and @BASECENTRY+1;
 INSERT INTO `creature_template` (`entry`,`modelid1`,`name`,`subname`,`minlevel`,`maxlevel`,`faction`,`npcflag`,`speed_walk`,`speed_run`,`scale`,`rank`,`BaseAttackTime`,`BaseVariance`,`unit_class`,`unit_flags`,`unit_flags2`,`type`,`type_flags`,`mingold`,`maxgold`,`ScriptName`,`MovementType`,`InhabitType`,`HealthModifier`,`ExperienceModifier`,`mechanic_immune_mask`,`flags_extra`) VALUES
@@ -48,3 +49,7 @@ INSERT INTO `gameobject` (`guid`,`id`,`map`,`spawnMask`,`phaseMask`,`position_x`
 (@BASEOGUID+1,@BASEOENTRY+0,169,1,1,-110.434,2427.93,92.0079,5.78446,0,0,0.246788,-0.969069,10,1),
 (@BASEOGUID+2,@BASEOENTRY+1,169,1,1,-83.8265,2432.05,92.0079,4.43437,0,0,0.798265,-0.602306,10,1),
 (@BASEOGUID+3,@BASEOENTRY+1,169,1,1,-105.475,2407.02,92.0079,1.1349 ,0,0,0.537481, 0.843276,10,1);
+
+DELETE FROM `item_template` WHERE `entry` between @BASEITEM+0 and @BASEITEM+0;
+INSERT INTO `item_template` (`entry`,`class`,`name`,`displayid`,`quality`,`flags`,`allowableclass`,`allowablerace`,`itemlevel`,`requiredlevel`,`maxcount`,`stackable`,`bagfamily`,`material`,`bonding`) VALUES
+(@BASEITEM+0,13,"Wrecked the Wrecker",40753,4,0,262143,32767,80,80,2147483647,2147483647,256,-1,1);
