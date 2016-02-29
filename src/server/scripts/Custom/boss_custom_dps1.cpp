@@ -10,7 +10,8 @@ static const uint32 BASEOENTRY = 1000000;
 static const uint32 BASEGOSSIP = 60400;
 static const uint32 BASETEXT = 16740000;
 static const uint32 BASEITEM = 100000;
-static const WorldLocation ENTRY_POINT(169, -76.59f, 2410.39f, 92.008f, 2.6429f);
+static const WorldLocation ENTRY_POINT(169, -88.587868f, 2415.875732f, 92.007889f, 2.619341f);
+static const WorldLocation EXIT_POINT(571, 5701.089844f, 616.113342f, 646.719971f, 4.486290f);
 enum WreckerTalk
 {
     YELL_ENCOUNTER_BEGIN        = 1, // Little creature watch while I smash!
@@ -42,7 +43,7 @@ enum Spells
     SPELL_ICY_CHAINS            = 29991,
     SPELL_CHARGE                = 74399,
     SPELL_TELEPORT_VISUAL       = 64446,
-    SPELL_DIFFICULTY_AURA       = 65077,
+    SPELL_DIFFICULTY_AURA       = 44174, // 144 hp per second per stack (37440 over the entire encounter) - 3 stacks per difficulty level
     SPELL_MASS_RESURRECTION     = 72429
 };
 
@@ -84,11 +85,11 @@ static float const AGGRO_DISTANCE = 40.0f;
 static uint8 const numWeaken = 4;
 Position weakenPositions[numWeaken+1] =
 {
-    { -189.8f, 2454.2f, 92.008f },
-    { -251.7f, 2454.2f, 92.008f },
-    { -313.6f, 2454.2f, 92.008f },
-    { -375.5f, 2454.2f, 92.008f/*, M_PI*/ },
-    { -430.3f, 2454.2f, 92.008f }
+    { -189.8f, 2435.28f, 92.008f },
+    { -251.7f, 2435.28f, 92.008f },
+    { -313.6f, 2435.28f, 92.008f },
+    { -375.5f, 2435.28f, 92.008f/*, M_PI*/ },
+    { -420.3f, 2435.28f, 92.008f }
 };
 
 class boss_custom_dps1 : public CreatureScript
@@ -212,7 +213,9 @@ public:
                     if (value)
                         if (Aura* diffAura = me->AddAura(SPELL_DIFFICULTY_AURA, me))
                         {
-                            diffAura->SetStackAmount(value);
+                            diffAura->SetStackAmount(value * 3);
+                            diffAura->SetDuration(-1);
+                            diffAura->SetMaxDuration(-1);
                         }
                     _difficulty = value;
             }
@@ -364,7 +367,7 @@ public:
 
             uint32 killTime = GetMSTimeDiffToNow(_startTime);
             Talk(YELL_DEATH);
-            me->Talk(Trinity::StringFormat("%%s has been defeated by $n in %d.%d seconds!", killTime / IN_MILLISECONDS, killTime % IN_MILLISECONDS), CHAT_MSG_MONSTER_EMOTE, LANG_UNIVERSAL, 50000.0f, pKiller);
+            me->Talk(Trinity::StringFormat("%%s (difficulty %d) has been defeated by $n in %d.%d seconds!", _difficulty, killTime / IN_MILLISECONDS, killTime % IN_MILLISECONDS), CHAT_MSG_MONSTER_EMOTE, LANG_UNIVERSAL, 50000.0f, pKiller);
 
             uint32 tokenCount = 0;
             if (Item* token = pKiller->GetItemByEntry(ITEM_WRECKER_TOKEN))
@@ -446,8 +449,24 @@ public:
     }
 };
 
+class go_custom_dps1_portal : public GameObjectScript
+{
+public:
+    go_custom_dps1_portal() : GameObjectScript("go_custom_dps1_portal") { }
+
+    bool OnGossipHello(Player* player, GameObject* /*me*/) override
+    {
+        if (player->GetMapId() == ENTRY_POINT.GetMapId())
+            player->TeleportTo(EXIT_POINT);
+        else
+            player->TeleportTo(ENTRY_POINT);
+        return true;
+    }
+};
+
 void AddSC_boss_custom_dps1()
 {
     new boss_custom_dps1();
     new npc_custom_dps1_gatewatcher();
+    new go_custom_dps1_portal();
 }
