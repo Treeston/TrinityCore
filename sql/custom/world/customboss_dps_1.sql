@@ -12,7 +12,7 @@ SET @BASEITEM = 100000;
 
 DELETE FROM `creature_template` WHERE `entry` between @BASECENTRY+0 and @BASECENTRY+1;
 INSERT INTO `creature_template` (`entry`,`modelid1`,`name`,`subname`,`minlevel`,`maxlevel`,`faction`,`npcflag`,`speed_walk`,`speed_run`,`scale`,`rank`,`BaseAttackTime`,`BaseVariance`,`unit_class`,`unit_flags`,`unit_flags2`,`type`,`type_flags`,`mingold`,`maxgold`,`ScriptName`,`MovementType`,`InhabitType`,`HealthModifier`,`ExperienceModifier`,`mechanic_immune_mask`,`flags_extra`) VALUES
-(@BASECENTRY+0,16174,"The Wrecker","Abominable Abomination",83,83,14,0,2,0.15,1.5,3,850,1,1,0,0,6,76,1,1,"boss_custom_dps1",0,1,123.139,0,2147483647,262484),
+(@BASECENTRY+0,16174,"The Wrecker","Abominable Abomination",83,83,14,0,2,0.15,1.5,3,850,1,1,0,0,6,76,1,1,"boss_custom_dps1",0,1,123.139,0,936099839,262484),
 (@BASECENTRY+1,27108,"Novarch","The Gate Watcher",83,83,35,1,2,2,0.1,3,0.5,1,1,770,0,5,135266324,0,0,"npc_custom_dps1_gatewatcher",0,1,50,0,2147483647,2);
 							 
 DELETE FROM `creature_text` WHERE `entry` = @BASECENTRY+0;
