@@ -1343,6 +1343,9 @@ void World::LoadConfigSettings(bool reload)
     // Allow 5-man parties to use raid warnings
     m_bool_configs[CONFIG_CHAT_PARTY_RAID_WARNINGS] = sConfigMgr->GetBoolDefault("PartyRaidWarnings", false);
 
+    // enable/disable race masquerade system
+    m_bool_configs[CONFIG_ENABLE_RACE_MASQUERADE] = sConfigMgr->GetBoolDefault("EnableRaceMasquerade", false);
+
     // Allow to cache data queries
     m_bool_configs[CONFIG_CACHE_DATA_QUERIES] = sConfigMgr->GetBoolDefault("CacheDataQueries", true);
 
