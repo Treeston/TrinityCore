@@ -1430,6 +1430,7 @@ class TC_GAME_API Unit : public WorldObject
         void _UnapplyAura(AuraApplicationMap::iterator &i, AuraRemoveMode removeMode);
         void _UnapplyAura(AuraApplication * aurApp, AuraRemoveMode removeMode);
         void _RemoveNoStackAurasDueToAura(Aura* aura);
+        void _CheckAuraInterruptFlagsOnApply(Aura* aura);
         void _RegisterAuraEffect(AuraEffect* aurEff, bool apply);
 
         // m_ownedAuras container management

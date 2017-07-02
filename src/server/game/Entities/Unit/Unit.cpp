@@ -3469,6 +3469,11 @@ void Unit::_AddAura(UnitAura* aura, Unit* caster)
     if (aura->IsRemoved())
         return;
 
+    _CheckAuraInterruptFlagsOnApply(aura);
+
+    if (aura->IsRemoved())
+        return;
+
     aura->SetIsSingleTarget(caster && (aura->GetSpellInfo()->IsSingleTarget() || aura->HasEffectType(SPELL_AURA_CONTROL_VEHICLE)));
     if (aura->IsSingleTarget())
     {
@@ -3739,6 +3744,19 @@ void Unit::_RemoveNoStackAurasDueToAura(Aura* aura)
         if (i == m_appliedAuras.end())
             break;
         remove = true;
+    }
+}
+
+void Unit::_CheckAuraInterruptFlagsOnApply(Aura* aura)
+{
+    if (uint32 interruptFlags = aura->GetSpellInfo()->AuraInterruptFlags)
+    {
+        if ((interruptFlags & AURA_INTERRUPT_FLAG_MOUNT) && HasAuraType(SPELL_AURA_MOUNTED))
+        {
+            aura->Remove();
+            return;
+        }
+
     }
 }
 
