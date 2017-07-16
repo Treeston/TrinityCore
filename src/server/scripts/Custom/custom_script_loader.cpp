@@ -50,6 +50,7 @@ static std::string pretty(float f)
     return s;
 }
 
+static bool iscontroller(Unit*);
 class npc_damage_test_dummy : public CreatureScript
 {
     public:
@@ -102,6 +103,22 @@ class npc_damage_test_dummy : public CreatureScript
                 me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_PC);
         }
 
+        void PurgeNonControllerDebuffs()
+        {
+            me->ClearComboPointHolders();
+            std::list<Aura*> toRemove;
+            for (auto const& pair : me->GetOwnedAuras())
+            {
+                Unit* caster = pair.second->GetCaster();
+                if (caster && caster->GetOwnerGUID())
+                    caster = caster->GetOwner();
+                if (!caster || caster->GetTypeId() != TYPEID_UNIT || !iscontroller(caster))
+                    toRemove.push_back(pair.second);
+            }
+            for (Aura* aura : toRemove)
+                aura->Remove();
+        }
+
         void BeginAttempt(Player* target, Modes mode, Milliseconds timer)
         {
             _currentPlayer = target->GetGUID();
@@ -110,7 +127,7 @@ class npc_damage_test_dummy : public CreatureScript
             _attemptDuration = _attemptTimer = timer.count();
             _healthUpdateInterval = 1000;
             _rageGainInterval = 3000;
-            me->SetLevel(std::min<uint8>(252,target->getLevel()) + 3);
+            PurgeNonControllerDebuffs();
             UpdateFlags();
             me->Say(Trinity::StringFormat("OK, %s. Starting attempt in 10 seconds, get ready...", target->GetName().c_str()), LANG_UNIVERSAL);
         }
@@ -135,6 +152,7 @@ class npc_damage_test_dummy : public CreatureScript
                     _attemptCountdown -= diff;
                 else
                 {
+                    PurgeNonControllerDebuffs();
                     diff -= _attemptCountdown;
                     _attemptCountdown = 0;
                 }
@@ -693,6 +711,8 @@ class npc_damage_test_controller : public CreatureScript
         return new npc_damage_test_controllerAI(creature);
     }
 };
+
+bool iscontroller(Unit* unit) { return unit && (dynamic_cast<npc_damage_test_controller::npc_damage_test_controllerAI*>(unit->GetAI()) != nullptr); }
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
