@@ -1534,6 +1534,146 @@ class spell_hun_viper_attack_speed : public SpellScriptLoader
         }
 };
 
+enum PetScalingEntries
+{
+    SPELL_HUNTER_VS_WILD = 56339,
+    SPELL_WILD_HUNT      = 62758,
+    SPELL_ANIMAL_HANDLER = 34453
+};
+static SpellInfo const* FindRankedSpell(Unit* who, uint32 spell)
+{
+    spell = sSpellMgr->GetLastSpellInChain(spell);
+    do
+    {
+        if (who->HasSpell(spell))
+            return sSpellMgr->GetSpellInfo(spell);
+    } while (spell = sSpellMgr->GetPrevSpellInChain(spell));
+    return nullptr;
+}
+// 34902 - Hunter Pet Scaling 01
+// Applies: Stamina, Attack Power, Spell Power
+class spell_hun_pet_scaling_01 : public AuraScript
+{
+    PrepareAuraScript(spell_hun_pet_scaling_01);
+
+    void CalculateStamina(AuraEffect const* /*eff*/, int32& amount, bool& /*allowRecalc*/)
+    {
+        Unit* owner = GetUnitOwner()->GetOwner();
+        if (!owner)
+            return;
+        float pct = 45.0f;
+
+        // Wild Hunt - Increase contribution of owner's Stamina to pet Stamina by $s1%.
+        if (SpellInfo const* info = FindRankedSpell(GetUnitOwner(), SPELL_WILD_HUNT))
+            AddPct(pct, info->Effects[0].BasePoints);
+
+        amount = CalculatePct(owner->GetStat(STAT_STAMINA), pct);
+    }
+
+    void CalculateAP(AuraEffect const* /*eff*/, int32& amount, bool& /*allowRecalc*/)
+    {
+        Unit* owner = GetUnitOwner()->GetOwner();
+        if (!owner)
+            return;
+        float pct = 22.0f;
+
+        // Wild Hunt - Increase contribution of owner's AP to pet AP by $s2%.
+        if (SpellInfo const* info = FindRankedSpell(GetUnitOwner(), SPELL_WILD_HUNT))
+            AddPct(pct, info->Effects[1].BasePoints);
+
+        amount = CalculatePct(owner->GetTotalAttackPowerValue(RANGED_ATTACK), pct);
+
+        // Hunter vs. Wild - Increase AP by $s1% of owner's total Stamina.
+        if (AuraEffect* aurEff = owner->GetAuraEffectOfRankedSpell(SPELL_HUNTER_VS_WILD, EFFECT_0))
+            amount += CalculatePct(owner->GetStat(STAT_STAMINA), aurEff->GetAmount());
+
+        // Animal Handler - Increase pet AP by $s2%.
+        if (AuraEffect* aurEff = owner->GetAuraEffectOfRankedSpell(SPELL_ANIMAL_HANDLER, EFFECT_1))
+        {
+            AddPct(amount, aurEff->GetAmount());
+            amount += GetUnitOwner()->GetTotalAttackPowerValue(BASE_ATTACK);
+        }
+    }
+
+    void CalculateSP(AuraEffect const* /*eff*/, int32& amount, bool& /*allowRecalc*/)
+    {
+        Unit* owner = GetUnitOwner()->GetOwner();
+        if (!owner)
+            return;
+        float pct = 12.87f;
+
+        // Wild Hunt - Increase contribution of owner's AP to pet SP by $s2%.
+        if (SpellInfo const* info = FindRankedSpell(GetUnitOwner(), SPELL_WILD_HUNT))
+            AddPct(pct, info->Effects[1].BasePoints);
+
+        amount = CalculatePct(owner->GetTotalAttackPowerValue(RANGED_ATTACK), pct);
+
+        if (Player* playerOwner = owner->ToPlayer())
+            playerOwner->SetUInt32Value(PLAYER_PET_SPELL_POWER, (uint32)amount);
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_01::CalculateStamina, EFFECT_0, SPELL_AURA_MOD_STAT);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_01::CalculateAP, EFFECT_1, SPELL_AURA_MOD_ATTACK_POWER);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_01::CalculateSP, EFFECT_2, SPELL_AURA_MOD_DAMAGE_DONE);
+    }
+};
+
+// 34903 - Hunter Pet Scaling 02
+// 34904 - Hunter Pet Scaling 03
+// Applies: Armor + Resistances
+class spell_hun_pet_scaling_02_03 : public AuraScript
+{
+    PrepareAuraScript(spell_hun_pet_scaling_02_03);
+
+    void CalculateResistances(AuraEffect const* eff, int32& amount, bool& /*allowRecalc*/)
+    {
+        Unit* owner = GetUnitOwner()->GetOwner();
+        if (!owner)
+            return;
+
+        SpellSchoolMask resistMask = SpellSchoolMask(eff->GetMiscValue());
+        amount = CalculatePct(owner->GetResistance(resistMask), (resistMask == SPELL_SCHOOL_MASK_NORMAL) ? 35 : 40);
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_02_03::CalculateResistances, EFFECT_ALL, SPELL_AURA_MOD_RESISTANCE);
+    }
+};
+
+// 61017 - Hunter Pet Scaling 04
+// Applies: Melee hit, Spell hit, Expertise
+class spell_hun_pet_scaling_04 : public AuraScript
+{
+    PrepareAuraScript(spell_hun_pet_scaling_04);
+
+    int32 CalculatePercentChanceRelativeToCap(float ownerHitChance, float ownerCap, float petCap)
+    {
+        // scale owner's hit chance up to match the increased cap on pet attacks (17% spell hit/26% parry cap)
+        // @todo is this blizzlike? do pets get parry cap if hunter is hit capped?
+        return roundf(ownerHitChance * (petCap / ownerCap));
+    }
+
+    template <int cap>
+    void CalculateHitAmount(AuraEffect const* /*eff*/, int32& amount, bool& /*allowRecalc*/)
+    {
+        Unit* owner = GetUnitOwner()->GetOwner();
+        if (!owner)
+            return;
+        
+        amount = CalculatePercentChanceRelativeToCap(owner->m_modRangedHitChance, 8.0f, cap);
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_04::CalculateHitAmount<8>, EFFECT_0, SPELL_AURA_MOD_HIT_CHANCE);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_04::CalculateHitAmount<17>, EFFECT_1, SPELL_AURA_MOD_SPELL_HIT_CHANCE);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_04::CalculateHitAmount<26>, EFFECT_2, SPELL_AURA_MOD_EXPERTISE);
+    }
+};
+
 void AddSC_hunter_spell_scripts()
 {
     new spell_hun_aspect_of_the_beast();
@@ -1567,4 +1707,8 @@ void AddSC_hunter_spell_scripts()
     new spell_hun_thrill_of_the_hunt();
     new spell_hun_t9_4p_bonus();
     new spell_hun_viper_attack_speed();
+
+    RegisterAuraScript(spell_hun_pet_scaling_01);
+    RegisterAuraScript(spell_hun_pet_scaling_02_03);
+    RegisterAuraScript(spell_hun_pet_scaling_04);
 }
