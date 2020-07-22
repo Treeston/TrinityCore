@@ -32,16 +32,14 @@ public:
         sh.Initialize();
         sh.UpdateData(buff, halfSize);
         sh.Finalize();
-
-        memcpy(o1, sh.GetDigest(), 20);
+        o1 = sh.GetDigest();
 
         sh.Initialize();
         sh.UpdateData(buff + halfSize, size - halfSize);
         sh.Finalize();
+        o2 = sh.GetDigest();
 
-        memcpy(o2, sh.GetDigest(), 20);
-
-        memset(o0, 0x00, 20);
+        o0.fill(0x00);
 
         FillUp();
     }
@@ -62,19 +60,18 @@ private:
     void FillUp()
     {
         sh.Initialize();
-        sh.UpdateData(o1, 20);
-        sh.UpdateData(o0, 20);
-        sh.UpdateData(o2, 20);
+        sh.UpdateData(o1);
+        sh.UpdateData(o0);
+        sh.UpdateData(o2);
         sh.Finalize();
-
-        memcpy(o0, sh.GetDigest(), 20);
+        o0 = sh.GetDigest();
 
         taken = 0;
     }
 
     SHA1Hash sh;
     uint32 taken;
-    uint8 o0[20], o1[20], o2[20];
+    std::array<uint8,20> o0, o1, o2;
 };
 
 #endif

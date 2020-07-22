@@ -240,7 +240,7 @@ struct AuthSession
     uint32 LoginServerID = 0;
     uint32 RegionID = 0;
     uint64 DosResponse = 0;
-    uint8 Digest[SHA_DIGEST_LENGTH] = {};
+    SHA1Hash::Digest Digest;
     std::string Account;
     ByteBuffer AddonInfo;
 };
@@ -433,7 +433,7 @@ void WorldSocket::HandleAuthSession(WorldPacket& recvPacket)
     recvPacket >> authSession->BattlegroupID;
     recvPacket >> authSession->RealmID;               // realmId from auth_database.realmlist table
     recvPacket >> authSession->DosResponse;
-    recvPacket.read(authSession->Digest, 20);
+    recvPacket.read(authSession->Digest.data(), 20);
     authSession->AddonInfo.resize(recvPacket.size() - recvPacket.rpos());
     recvPacket.read(authSession->AddonInfo.contents(), authSession->AddonInfo.size()); // .contents will throw if empty, thats what we want
 
@@ -508,10 +508,10 @@ void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSes
     sha.UpdateData((uint8*)&t, 4);
     sha.UpdateData((uint8*)&authSession->LocalChallenge, 4);
     sha.UpdateData((uint8*)&_authSeed, 4);
-    sha.UpdateBigNumbers(&account.SessionKey, nullptr);
+    sha.UpdateBigNumbers(account.SessionKey);
     sha.Finalize();
 
-    if (memcmp(sha.GetDigest(), authSession->Digest, SHA_DIGEST_LENGTH) != 0)
+    if (sha.GetDigest() != authSession->Digest)
     {
         SendAuthResponseError(AUTH_FAILED);
         TC_LOG_ERROR("network", "WorldSocket::HandleAuthSession: Authentication failed for account: %u ('%s') address: %s", account.Id, authSession->Account.c_str(), address.c_str());

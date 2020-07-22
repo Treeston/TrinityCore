@@ -19,6 +19,7 @@
 #define _AUTH_SHA1_H
 
 #include "Define.h"
+#include <array>
 #include <string>
 #include <openssl/sha.h>
 
@@ -27,23 +28,32 @@ class BigNumber;
 class TC_COMMON_API SHA1Hash
 {
     public:
-        SHA1Hash();
-        ~SHA1Hash();
+        static constexpr uint32 HASH_LEN = SHA_DIGEST_LENGTH;
+        using Digest = std::array<uint8, HASH_LEN>;
 
-        void UpdateBigNumbers(BigNumber* bn0, ...);
+        SHA1Hash() { Initialize(); }
+        ~SHA1Hash() { Initialize(); }
 
         void UpdateData(const uint8 *dta, int len);
-        void UpdateData(const std::string &str);
+        void UpdateData(BigNumber const& bn);
+        template <typename C> void UpdateData(C const& container) { UpdateData(reinterpret_cast<uint8 const*>(std::data(container)), std::size(container)); }
+
+        template <typename... Ts> void UpdateBigNumbers(BigNumber const& bn, Ts&&... tail)
+        {
+            UpdateData(bn);
+            if constexpr (sizeof...(Ts) > 0)
+                UpdateBigNumbers(std::forward<Ts>(tail)...);
+        }
 
         void Initialize();
         void Finalize();
 
-        uint8 *GetDigest(void) { return mDigest; }
-        int GetLength(void) const { return SHA_DIGEST_LENGTH; }
+        Digest const& GetDigest(void) { return mDigest; }
+        int GetLength(void) const { return HASH_LEN; }
 
     private:
         SHA_CTX mC;
-        uint8 mDigest[SHA_DIGEST_LENGTH];
+        Digest mDigest;
 };
 
 /// Returns the SHA1 hash of the given content as hex string.

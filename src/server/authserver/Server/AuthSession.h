@@ -24,6 +24,7 @@
 #include "Common.h"
 #include "Optional.h"
 #include "Socket.h"
+#include "SRP6.h"
 #include "QueryResult.h"
 #include <memory>
 #include <boost/asio/ip/tcp.hpp>
@@ -87,12 +88,12 @@ private:
     void ReconnectChallengeCallback(PreparedQueryResult result);
     void RealmListCallback(PreparedQueryResult result);
 
-    void SetVSFields(const std::string& rI);
+    void SetVSFields(const std::string& rI, std::string& s, std::string& v);
 
-    bool VerifyVersion(uint8 const* a, int32 aLength, uint8 const* versionProof, bool isReconnect);
+    bool VerifyVersion(uint8 const* a, int32 aLength, std::array<uint8, 20> const& versionProof, bool isReconnect);
+    template <size_t S> bool VerifyVersion(std::array<uint8, S> const& a, std::array<uint8, 20> versionProof, bool isReconnect) { return VerifyVersion(a.data(), S, versionProof, isReconnect); }
 
-    BigNumber N, s, g, v;
-    BigNumber b, B;
+    Trinity::Crypto::SRP6 process;
     BigNumber K;
     BigNumber _reconnectProof;
 

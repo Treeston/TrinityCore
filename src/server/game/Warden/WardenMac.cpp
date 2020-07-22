@@ -161,7 +161,7 @@ void WardenMac::HandleHashResult(ByteBuffer &buff)
     //const uint8 validHash[20] = { 0x56, 0x8C, 0x05, 0x4C, 0x78, 0x1A, 0x97, 0x2A, 0x60, 0x37, 0xA2, 0x29, 0x0C, 0x22, 0xB5, 0x25, 0x71, 0xA0, 0x6F, 0x4E };
 
     // Verify key
-    if (memcmp(buff.contents() + 1, sha1.GetDigest(), 20) != 0)
+    if (memcmp(buff.contents() + 1, sha1.GetDigest().data(), SHA1Hash::HASH_LEN) != 0)
     {
         TC_LOG_WARN("warden", "%s failed hash reply. Action: %s", _session->GetPlayerInfo().c_str(), Penalty().c_str());
         return;
@@ -244,7 +244,7 @@ void WardenMac::HandleData(ByteBuffer &buff)
     uint8 sha1Hash[20];
     buff.read(sha1Hash, 20);
 
-    if (memcmp(sha1Hash, sha1.GetDigest(), 20) != 0)
+    if (memcmp(sha1Hash, sha1.GetDigest().data(), SHA1Hash::HASH_LEN) != 0)
     {
         TC_LOG_DEBUG("warden", "Handle data failed: SHA1 hash is wrong!");
         //found = true;

@@ -24,6 +24,7 @@
 #include "Realm.h"
 #include "ScriptMgr.h"
 #include "SHA1.h"
+#include "SRP6.h"
 #include "Util.h"
 #include "World.h"
 #include "WorldSession.h"
@@ -334,20 +335,21 @@ bool AccountMgr::GetEmail(uint32 accountId, std::string& email)
 
 bool AccountMgr::CheckPassword(uint32 accountId, std::string password)
 {
-    std::string username;
 
-    if (!GetName(accountId, username))
+    LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_CHECK_PASSWORD);
+    stmt->setUInt32(0, accountId);
+    PreparedQueryResult result = LoginDatabase.Query(stmt);
+    if (!result) // account not found
         return false;
+
+    std::string username = (*result)[0].GetString();
+    BigNumber seed = (*result)[1].GetCString();
+    BigNumber verifier = (*result)[2].GetCString();
 
     Utf8ToUpperOnlyLatin(username);
     Utf8ToUpperOnlyLatin(password);
 
-    LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_CHECK_PASSWORD);
-    stmt->setUInt32(0, accountId);
-    stmt->setString(1, CalculateShaPassHash(username, password));
-    PreparedQueryResult result = LoginDatabase.Query(stmt);
-
-    return (result) ? true : false;
+    return (verifier == Trinity::Crypto::SRP6::CalculateVerifier(seed, username, password));
 }
 
 bool AccountMgr::CheckEmail(uint32 accountId, std::string newEmail)
@@ -386,7 +388,7 @@ std::string AccountMgr::CalculateShaPassHash(std::string const& name, std::strin
     sha.UpdateData(password);
     sha.Finalize();
 
-    return ByteArrayToHexStr(sha.GetDigest(), sha.GetLength());
+    return ByteArrayToHexStr(sha.GetDigest());
 }
 
 bool AccountMgr::IsBannedAccount(std::string const& name)
